@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools~=68.2.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sypy"
+version = "0.0.1"
+authors = [
+    { name="Ivan \"Spaceginner\"", email="ivan.demian2009@gmail.com" }
+]
+description = "fastapi rip-off"
+readme = "readme.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Typing :: Typed",
+]
+license = { file = "license.txt" }
+
+[project.urls]
+"Homepage" = "https://github.com/Spaceginner/sypy"
+"Bug Tracker" = "https://github.com/Spaceginner/sypy/issues"
