@@ -9,7 +9,7 @@ from sypy.parameters import Body
 server = Server()
 
 
-def echo(stuff: Annotated[str, Body] = "") -> str:
+def echo(stuff: Annotated[str, Body]) -> str:
     return stuff
 
 
