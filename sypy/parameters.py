@@ -18,6 +18,10 @@ class Header:
     pass
 
 
-@dataclass
 class Depends:
     dependency: Callback
+
+    def __init__(self, dependency: Callable) -> None:
+        from ._dispatcher import Callback
+
+        self.dependency = Callback(dependency)
