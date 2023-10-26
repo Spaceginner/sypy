@@ -8,11 +8,11 @@ import socket
 import time
 import logging
 from enum import StrEnum
-from typing import overload
+from typing import overload, Callable
 
 from ._dispatcher import Dispatcher, DispatcherNotAllowed, DispatcherNotFound
 from ._utils import autofilling_split
-from .http import HTTPRequest, HTTPResponse, HTTPStatus, HTTPException, Headers
+from .http import HTTPRequest, HTTPResponse, HTTPStatus, HTTPException, Headers, Path, HTTPMethod
 
 
 class IP:
@@ -289,3 +289,29 @@ class Server:
 
     def stop(self) -> None:
         raise NotImplementedError("you cant stop it")
+
+    @staticmethod
+    def _callback_register(method: HTTPMethod) -> Callable[[str], Callable[[Callable], Callable]]:
+        def decorator(self, path: str) -> Callable[[Callable], Callable]:
+            nonlocal method
+
+            def register(callback: Callable) -> Callable:
+                nonlocal path, self, method
+
+                self.dispatcher.register_callback(Path(path), method, callback)
+
+                return callback
+
+            return register
+
+        return decorator
+
+    get = _callback_register(HTTPMethod.GET)
+    head = _callback_register(HTTPMethod.HEAD)
+    post = _callback_register(HTTPMethod.POST)
+    put = _callback_register(HTTPMethod.PUT)
+    delete = _callback_register(HTTPMethod.DELETE)
+    connect = _callback_register(HTTPMethod.CONNECT)
+    options = _callback_register(HTTPMethod.OPTIONS)
+    trace = _callback_register(HTTPMethod.TRACE)
+    patch = _callback_register(HTTPMethod.PATCH)
