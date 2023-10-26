@@ -13,8 +13,13 @@ def echo(stuff: Annotated[str, Body]) -> str:
     return stuff
 
 
+def faulty_callback() -> None:
+    0 / 0
+
+
 server.dispatcher.register_callback(Path('/echo'), HTTPMethod.POST, echo)
+server.dispatcher.register_callback(Path('/faulty'), HTTPMethod.GET, faulty_callback)
 
 
 if __name__ == '__main__':
-    server.start(3000, listen=True, workers=4)
+    server.start(3001, listen=True, workers=4)
