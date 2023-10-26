@@ -77,7 +77,7 @@ class HTTPStatus(IntEnum):
             case 102: return "102 Processing"
             case 103: return "103 Early Hints"
 
-            case 200: return "200 Ok"
+            case 200: return "200 OK"
             case 201: return "201 Created"
             case 202: return "202 Accepted"
             case 203: return "203 Non-Authoritative Information"
