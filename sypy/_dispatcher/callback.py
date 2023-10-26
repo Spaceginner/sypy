@@ -66,6 +66,8 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             self.converter = lambda b: b
         elif is_in(signature.return_annotation, (dict, list, tuple)):
             self.converter = lambda d: json.dumps(d).encode('utf-8')
+        elif signature.return_annotation is None:
+            self.converter = lambda _: bytes()
         else:
             raise TypeError("not supported return buddy, not supported")
 
