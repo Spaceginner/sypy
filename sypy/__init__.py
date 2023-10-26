@@ -7,7 +7,6 @@ import threading
 import socket
 import time
 import logging
-import uuid
 from enum import StrEnum
 from typing import overload
 
@@ -45,29 +44,20 @@ class _Requester:
 
 @dataclass
 class _PacketStats:
-    is_finished: bool = False
-
     receiving: float | None = None
-    balancing: float | None = None
-    decoding: float | None = None
-    dispatching: float | None = None
     executing: float | None = None
-    encoding: float | None = None
-    sending: float | None = None
+    executed: float | None = None
     sent: float | None = None
 
     def __str__(self) -> str:
-        return f"{f"{self.sent - self.receiving:.1f}ms" if self.is_finished else 'N/A'} ({f"{self.balancing - self.receiving:.1f}ms" if self.balancing is not None else 'N/A'} {f"{self.decoding - self.balancing:.1f}ms" if self.decoding is not None else 'N/A'} {f"{self.dispatching - self.decoding:.1f}ms" if self.dispatching is not None else 'N/A'} {f"{self.executing - self.dispatching:.1f}ms" if self.executing is not None else 'N/A'} {f"{self.encoding - self.executing:.1f}ms" if self.encoding is not None else 'N/A'} {f"{self.sending - self.encoding:.1f}ms" if self.sending is not None else 'N/A'} {f"{self.sent - self.sending:.1f}ms" if self.sent is not None else 'N/A'})"
+        return (f"{f"{(self.sent - self.receiving) * 1000:.2f}ms" if self.sent is not None else 'N/A'} "
+                f"({f"{(self.executed - self.executing) * 1000:.2f}ms" if self.executed is not None else 'N/A'})")
 
 
 class _PacketState(StrEnum):
     Receiving = 'receiving'
-    Balancing = 'balancing'
-    Decoding = 'decoding'
-    Dispatching = 'dispatching'
     Executing = 'executing'
-    Encoding = 'encoding'
-    Sending = 'sending'
+    Executed = 'executed'
     Sent = 'sent'
 
 
@@ -79,8 +69,6 @@ class _Packet:
     requester: _Requester
     connection: socket.socket
     stats: _PacketStats = field(default_factory=_PacketStats)
-
-    id_: uuid.UUID = field(default_factory=uuid.uuid4)
 
     response_http: HTTPResponse | None = None
 
@@ -107,7 +95,6 @@ class _Packet:
     @property
     def request_http(self) -> HTTPRequest | False:
         if self._req_http is None:
-            self.mark(_PacketState.Decoding)
             try:
                 self._req_http = HTTPRequest.from_bytes(self.request_body)
             except ValueError:
@@ -121,24 +108,23 @@ class _Packet:
             return None
 
         if self._res_body is None:
-            self.mark(_PacketState.Encoding)
             self._res_body = self.response_http.to_bytes()
 
         return self._res_body
 
     def mark(self, state: _PacketState) -> None:
         if getattr(self.stats, state) is not None:
-            raise ValueError(f"packet was already marked as {state}")
-        else:
-            setattr(self.stats, state, time.perf_counter())
-            logging.debug(f"{state} {self}")
+            raise RuntimeError("packet was already marked as receiving")
+
+        setattr(self.stats, state, time.perf_counter())
 
         if state == _PacketState.Sent:
-            self.stats.is_finished = True
-            logging.info(f"packet {self} was processed in {self.stats}")
+            logging.info(f"{self} - {self.stats}")
 
     def __str__(self) -> str:
-        return f"{self.id_} ({self.requester}) ({f"{self._req_http.method} {self._req_http.path}" if self._req_http is not None and self._req_http is not False else "N/A N/A"})"
+        return (f"{self.requester} - "
+                f"{f"{self._req_http.method} {self._req_http.path}" if self._req_http is not None and self._req_http is not False else "N/A N/A"} - "
+                f"{self.response_http.status if self.response_http is not None else "N/A"}")
 
 
 class _Processor:
@@ -170,7 +156,6 @@ class _Processor:
         for processed_packet in iter(self._processed_queue.get, None):
             data = processed_packet.response_body
 
-            processed_packet.mark(_PacketState.Sending)
             with processed_packet.connection as conn:
                 conn.sendall(data)
 
@@ -181,10 +166,9 @@ class _Processor:
             http_req = incoming_packet.request_http
 
             if http_req is False:
-                logging.warning(f"{incoming_packet} is invalid")
+                logging.warning(f"{incoming_packet} - invalid")
                 continue
 
-            incoming_packet.mark(_PacketState.Dispatching)
             try:
                 try:
                     callback = self._dispatcher.dispatch(http_req.path, http_req.method)
@@ -195,6 +179,7 @@ class _Processor:
 
                 incoming_packet.mark(_PacketState.Executing)
                 incoming_packet.response_http = callback(incoming_packet.request_http)
+                incoming_packet.mark(_PacketState.Executed)
             except HTTPException as http_exc:
                 incoming_packet.response_http = HTTPResponse(http_exc.status_code, Headers(), http_exc.body)
             finally:
@@ -220,7 +205,6 @@ class _Executor:
         self._processors = [_Processor(self._shut_down, self._dispatcher) for _ in range(workers_count)]
 
     def execute(self, packet: _Packet):
-        packet.mark(_PacketState.Balancing)
         self._processors[self._last_worked_worker].incoming_queue.put(packet)
         self._last_worked_worker = (self._last_worked_worker + 1) % self._worker_count
 
