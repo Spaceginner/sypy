@@ -14,4 +14,4 @@ def isinstanceorclass(obj: object, class_: type) -> bool:
 
 
 def is_in(obj, iterable: Iterable) -> bool:
-    return any(obj in item for item in iterable)
+    return any(obj is item for item in iterable)
