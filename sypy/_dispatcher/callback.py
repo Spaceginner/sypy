@@ -23,8 +23,11 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
     callback: Callable[[P], R]
     converter: Callable[[R], bytes]
 
-    def __init__(self, callback: Callable[[P], R]) -> None:
+    raw: bool = False
+
+    def __init__(self, callback: Callable[[P], R], raw: bool = False) -> None:
         self.callback = callback
+        self.raw = raw
 
         self.query_params = []
         self.header_params = []
@@ -58,7 +61,9 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             else:
                 self.query_params.append((i, param.name, type_, param.default != param.empty, param.default))
 
-        if signature.return_annotation is int:
+        if raw:
+            self.converter = lambda d: d
+        elif signature.return_annotation is int:
             self.converter = lambda n: str(n).encode('ascii')
         elif signature.return_annotation is str:
             self.converter = lambda s: s.encode('utf-8')
@@ -71,7 +76,7 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
         else:
             raise TypeError("not supported return buddy, not supported")
 
-    def __call__(self, request: HTTPRequest) -> HTTPResponse:
+    def __call__(self, request: HTTPRequest) -> HTTPResponse | R:
         total_parameters = len(self.query_params) + len(self.header_params) + len(self.dependent_params) + (self.body_param is not None)
         unprocessed_parameters: list[_Nothing | tuple[str, type | None]] = [_Nothing for _ in range(total_parameters)]
 
@@ -116,4 +121,7 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             else:
                 raise TypeError("implement yourself, not supported callback signature paramater's type")
 
-        return HTTPResponse(HTTPStatus.OK, Headers(), self.converter(self.callback(*parameters)))
+        if self.raw:
+            return self.callback(*parameters)
+        else:
+            return HTTPResponse(HTTPStatus.OK, Headers(), self.converter(self.callback(*parameters)))

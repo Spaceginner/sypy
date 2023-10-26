@@ -24,4 +24,4 @@ class Depends:
     def __init__(self, dependency: Callable) -> None:
         from ._dispatcher import Callback
 
-        self.dependency = Callback(dependency)
+        self.dependency = Callback(dependency, raw=True)
