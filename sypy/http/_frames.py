@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import string
 
 from ._method import HTTPMethod
 from ._errors import InvalidHTTPPacket, HTTPException
@@ -11,11 +12,28 @@ from .._utils import autofilling_split, fillingin
 
 class Headers(dict[str, str]):
     @staticmethod
+    def _process_index(index: str) -> str:
+        return index.lower().replace('_', '-')
+
+    @staticmethod
+    def _prepare_index(index: str) -> str:
+        return string.capwords(index, '-')
+
+    def __setitem__(self, key: str, value):
+        return super().__setitem__(self._process_index(key), value)
+
+    def __getitem__(self, item):
+        return super().__getitem__(self._process_index(item))
+
+    def __contains__(self, item):
+        return super().__contains__(self._process_index(item))
+
+    @staticmethod
     def from_string(s: str) -> Headers:
-        return Headers({field.strip(): value.strip() for field, value in map(lambda h_raw: h_raw.split(':', 1), s)})
+        return Headers({Headers._process_index(field): value.strip() for field, value in map(lambda h_raw: h_raw.split(':', 1), s)})
 
     def to_string(self) -> str:
-        return '\r\n'.join(f"{field}: {value}" for field, value in self.items())
+        return '\r\n'.join(f"{self._prepare_index(field)}: {value}" for field, value in self.items())
 
 
 class QueryParams(dict[str, str]):
