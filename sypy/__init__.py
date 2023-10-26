@@ -269,7 +269,10 @@ class Server:
         raise NotImplementedError("idfk")
 
     def start(self, port: int, /, debug: bool = False, listen: bool = False, workers: int = os.cpu_count() or 1) -> None:
-        logging.basicConfig(level='DEBUG' if debug else 'INFO')
+        logging.basicConfig(
+            format="%(asctime)s %(levelname)s - %(message)s",
+            level='DEBUG' if debug else 'INFO'
+        )
 
         self._executor = _Executor(self._shut_down, self.dispatcher, workers)
 
