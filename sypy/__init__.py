@@ -183,6 +183,10 @@ class _Processor:
                     incoming_packet.mark(_PacketState.Executing)
                     response_http = callback(request_http)
                 except Exception as exc:
+                    # ignore HTTPExceptions
+                    if isinstance(exc, HTTPException):
+                        raise exc from exc.__context__
+
                     raise HTTPException(HTTPStatus.InternalServerError, details=f"{type(exc).__name__}: {exc}") from None  # TODO switch displaying of error message
                 finally:
                     incoming_packet.mark(_PacketState.Executed)
