@@ -177,9 +177,17 @@ class _Processor:
                 except DispatcherNotAllowed:
                     raise HTTPException(HTTPStatus.MethodNotAllowed) from None
 
-                incoming_packet.mark(_PacketState.Executing)
-                incoming_packet.response_http = callback(incoming_packet.request_http)
-                incoming_packet.mark(_PacketState.Executed)
+                request_http = incoming_packet.request_http
+
+                try:
+                    incoming_packet.mark(_PacketState.Executing)
+                    response_http = callback(request_http)
+                except Exception as exc:
+                    raise HTTPException(HTTPStatus.InternalServerError, details=f"{type(exc).__name__}: {exc}") from None  # TODO switch displaying of error message
+                finally:
+                    incoming_packet.mark(_PacketState.Executed)
+
+                incoming_packet.response_http = response_http
             except HTTPException as http_exc:
                 incoming_packet.response_http = HTTPResponse(http_exc.status_code, Headers(), http_exc.body)
             finally:
