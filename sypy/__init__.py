@@ -133,8 +133,11 @@ class _Socket:
         self._queue_thread.start()
 
     def _socket_worker(self, port: int, listen: bool) -> None:
+        host = ('0.0.0.0' if listen else '127.0.0.1', port)
+
+        logging.info(f"launching socket worker on {':'.join(map(str, host))}")
         with self._socket as s:
-            s.bind(('0.0.0.0' if listen else '127.0.0.1', port))
+            s.bind(host)
             s.listen(True)
 
             while not self._shut_down.is_set():
