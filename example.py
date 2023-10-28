@@ -34,4 +34,4 @@ def jection(is_it: Annotated[bool, Depends(checker)], area: Annotated[float, Dep
 
 
 if __name__ == '__main__':
-    server.start(3001)
+    server.start(3000)
