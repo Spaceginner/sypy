@@ -1,130 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import os
 import queue
 import threading
 import socket
-import time
 import logging
-from enum import StrEnum
-from typing import overload, Callable
+from typing import Callable
 
+from ._packet import Packet, PacketState
 from ._dispatcher import Dispatcher, DispatcherNotAllowed, DispatcherNotFound
+from ._packet import Packet, PacketState, Requester, IP
 from ._utils import autofilling_split
 from .http import HTTPRequest, HTTPResponse, HTTPStatus, HTTPException, Headers, Path, HTTPMethod
-
-
-class IP:
-    octets: tuple[int, int, int, int]
-
-    @overload
-    def __init__(self, octets: tuple[int, int, int, int]) -> None: ...
-    @overload
-    def __init__(self, int_: int) -> None: ...
-
-    def __init__(self, *args):
-        if isinstance(args[0], tuple):
-            self.octets = args[0]
-        elif isinstance(args[0], int):
-            self.octets = tuple(args[0].to_bytes(4))
-
-    def __str__(self) -> str:
-        return '.'.join(map(str, self.octets))
-
-
-@dataclass
-class _Requester:
-    ip: IP
-    port: int
-
-    def __str__(self) -> str:
-        return f"{self.ip}:{self.port}"
-
-
-@dataclass
-class _PacketStats:
-    receiving: float | None = None
-    executing: float | None = None
-    executed: float | None = None
-    sent: float | None = None
-
-    def __str__(self) -> str:
-        return (f"{f"{(self.sent - self.receiving) * 1000:.2f}ms" if self.sent is not None else 'N/A'} "
-                f"({f"{(self.executed - self.executing) * 1000:.2f}ms" if self.executed is not None else 'N/A'})")
-
-
-class _PacketState(StrEnum):
-    Receiving = 'receiving'
-    Executing = 'executing'
-    Executed = 'executed'
-    Sent = 'sent'
-
-
-BUFFER_SIZE = 4096
-
-
-@dataclass
-class _Packet:
-    requester: _Requester
-    connection: socket.socket
-    stats: _PacketStats = field(default_factory=_PacketStats)
-
-    response_http: HTTPResponse | None = None
-
-    _req_http: HTTPRequest | None = None
-    _res_body: bytes | None = None
-    _req_body: bytes | None = None
-
-    @property
-    def request_body(self) -> bytes:
-        if self._req_body is None:
-            buffer: list[bytes] = []
-
-            while True:
-                if data := self.connection.recv(BUFFER_SIZE):
-                    buffer.append(data)
-
-                if len(data) < BUFFER_SIZE:
-                    break
-
-            self._req_body = bytes([byte for bytes_ in buffer for byte in bytes_])
-
-        return self._req_body
-
-    @property
-    def request_http(self) -> HTTPRequest | False:
-        if self._req_http is None:
-            try:
-                self._req_http = HTTPRequest.from_bytes(self.request_body)
-            except ValueError:
-                self._req_http = False  # TODO set it to a more meaningful thing maybe
-
-        return self._req_http
-
-    @property
-    def response_body(self) -> bytes | None:
-        if self.response_http is None:
-            return None
-
-        if self._res_body is None:
-            self._res_body = self.response_http.to_bytes()
-
-        return self._res_body
-
-    def mark(self, state: _PacketState) -> None:
-        if getattr(self.stats, state) is not None:
-            raise RuntimeError("packet was already marked as receiving")
-
-        setattr(self.stats, state, time.perf_counter())
-
-        if state == _PacketState.Sent:
-            logging.info(f"{self} - {self.stats}")
-
-    def __str__(self) -> str:
-        return (f"{self.requester} - "
-                f"{f"{self._req_http.method} {self._req_http.path}" if self._req_http is not None and self._req_http is not False else "N/A N/A"} - "
-                f"{self.response_http.status if self.response_http is not None else "N/A"}")
 
 
 class _Processor:
@@ -132,8 +19,8 @@ class _Processor:
 
     _dispatcher: Dispatcher
 
-    incoming_queue: queue.Queue[_Packet]
-    _processed_queue: queue.Queue[_Packet]
+    incoming_queue: queue.Queue[Packet]
+    _processed_queue: queue.Queue[Packet]
 
     _sending_thread: threading.Thread
     _processing_thread: threading.Thread
@@ -159,7 +46,7 @@ class _Processor:
             with processed_packet.connection as conn:
                 conn.sendall(data)
 
-            processed_packet.mark(_PacketState.Sent)
+            processed_packet.mark(PacketState.Sent)
 
     def _processing_worker(self) -> None:
         for incoming_packet in iter(self.incoming_queue.get, None):
@@ -180,7 +67,7 @@ class _Processor:
                 request_http = incoming_packet.request_http
 
                 try:
-                    incoming_packet.mark(_PacketState.Executing)
+                    incoming_packet.mark(PacketState.Executing)
                     response_http = callback(request_http)
                 except Exception as exc:
                     # ignore HTTPExceptions
@@ -189,7 +76,7 @@ class _Processor:
 
                     raise HTTPException(HTTPStatus.InternalServerError, details=f"{type(exc).__name__}: {exc}") from None  # TODO switch displaying of error message
                 finally:
-                    incoming_packet.mark(_PacketState.Executed)
+                    incoming_packet.mark(PacketState.Executed)
 
                 incoming_packet.response_http = response_http
             except HTTPException as http_exc:
@@ -216,7 +103,7 @@ class _Executor:
 
         self._processors = [_Processor(self._shut_down, self._dispatcher) for _ in range(workers_count)]
 
-    def execute(self, packet: _Packet):
+    def execute(self, packet: Packet):
         self._processors[self._last_worked_worker].incoming_queue.put(packet)
         self._last_worked_worker = (self._last_worked_worker + 1) % self._worker_count
 
@@ -229,7 +116,7 @@ class _Socket:
     _socket: socket.socket
     _socket_thread: threading.Thread
 
-    _packet_queue: queue.Queue[_Packet]
+    _packet_queue: queue.Queue[Packet]
     _queue_thread: threading.Thread
 
     def __init__(self, shut_down: threading.Event, executor: _Executor, port: int, listen: bool) -> None:
@@ -253,7 +140,7 @@ class _Socket:
 
             while not self._shut_down.is_set():
                 conn, addr = s.accept()
-                (p := _Packet(_Requester(IP(tuple(map(int, addr[0].split('.')))), addr[1]), conn)).mark(_PacketState.Receiving)
+                (p := Packet(Requester(IP(tuple(map(int, addr[0].split('.')))), addr[1]), conn)).mark(PacketState.Receiving)
                 self._packet_queue.put(p)
 
     def _queue_worker(self) -> None:

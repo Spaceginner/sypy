@@ -3,9 +3,8 @@ import inspect
 import json
 from typing import Callable, Any, _AnnotatedAlias, get_args
 
-from ..http import HTTPStatus, Headers, HTTPException
+from ..http import HTTPStatus, Headers, HTTPException, HTTPRequest, HTTPResponse
 from .._utils import isinstanceorclass, is_in
-from ..http import HTTPRequest, HTTPResponse
 from ..parameters import Body, Query, Header, Depends
 
 
@@ -85,9 +84,9 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
 
             if magic[1] not in params:
                 if magic[3]:
-                    unprocessed_parameters[magic[0]] = magic[4], get_args(magic[2])[0]
+                    unprocessed_parameters[magic[0]] = magic[4], None
             else:
-                unprocessed_parameters[magic[0]] = params[magic[1]], get_args(magic[2])[0]
+                unprocessed_parameters[magic[0]] = params[magic[1]], get_args(magic[2])[0] if isinstance(magic[2], _AnnotatedAlias) else magic[2]
 
         for query_param in self.query_params:
             do_stuff(query_param, request.query_params)
@@ -96,16 +95,13 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
         for depends_param in self.dependent_params:
             unprocessed_parameters[depends_param[0]] = depends_param[1](request), None
         if self.body_param is not None:
-            unprocessed_parameters[self.body_param[0]] = request.body, get_args(self.body_param[1])[0]
+            unprocessed_parameters[self.body_param[0]] = request.body.decode('ascii'), get_args(self.body_param[1])[0]
 
         if _Nothing in unprocessed_parameters:
             raise HTTPException(HTTPStatus.UnprocessableContent, details="you forgor something")
 
-        parameters: list[int | str | bool | None] = []
+        parameters: list[int | str | bool | bytes | None] = []
         for value, type_ in unprocessed_parameters:
-            if isinstance(value, bytes):
-                value = value.decode('ascii')
-
             if type_ is None:
                 parameters.append(value)
             elif (v := value.strip().lower()) == 'null':
