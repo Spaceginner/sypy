@@ -2,10 +2,17 @@ from __future__ import annotations
 import inspect
 import json
 from typing import Callable, Any, _AnnotatedAlias, get_args
+from dataclasses import dataclass
 
 from ..http import HTTPStatus, Headers, HTTPException, HTTPRequest, HTTPResponse
 from .._utils import isinstanceorclass, is_in
 from ..parameters import Body, Query, Header, Depends
+
+
+@dataclass
+class Calls:
+    pre_call: Callable | None = None
+    post_call: Callable | None = None
 
 
 class _Nothing:
@@ -75,7 +82,7 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
         else:
             raise TypeError("not supported return buddy, not supported")
 
-    def __call__(self, request: HTTPRequest) -> HTTPResponse | R:
+    def __call__(self, request: HTTPRequest, callback_callbacks: Calls | None = None) -> HTTPResponse | R:
         total_parameters = len(self.query_params) + len(self.header_params) + len(self.dependent_params) + (self.body_param is not None)
         unprocessed_parameters: list[_Nothing | tuple[str, type | None]] = [_Nothing for _ in range(total_parameters)]
 
@@ -117,7 +124,14 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             else:
                 raise TypeError("implement yourself, not supported callback signature paramater's type")
 
-        if self.raw:
-            return self.callback(*parameters)
-        else:
-            return HTTPResponse(HTTPStatus.OK, Headers(), self.converter(self.callback(*parameters)))
+        if callback_callbacks is not None and callback_callbacks.pre_call is not None:
+            callback_callbacks.pre_call()
+
+        try:
+            if self.raw:
+                return self.callback(*parameters)
+            else:
+                return HTTPResponse(HTTPStatus.OK, Headers(), self.converter(self.callback(*parameters)))
+        finally:
+            if callback_callbacks is not None and callback_callbacks.pre_call is not None:
+                callback_callbacks.post_call()

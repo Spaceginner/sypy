@@ -7,6 +7,7 @@ import socket
 import logging
 from typing import Callable
 
+from ._dispatcher.callback import Calls
 from ._packet import Packet, PacketState
 from ._dispatcher import Dispatcher, DispatcherNotAllowed, DispatcherNotFound
 from ._packet import Packet, PacketState, Requester, IP
@@ -67,16 +68,14 @@ class _Processor:
                 request_http = incoming_packet.request_http
 
                 try:
-                    incoming_packet.mark(PacketState.Executing)
-                    response_http = callback(request_http)
+
+                    response_http = callback(request_http, Calls(lambda: incoming_packet.mark(PacketState.Executing), lambda: incoming_packet.mark(PacketState.Executed)))
                 except Exception as exc:
                     # ignore HTTPExceptions
                     if isinstance(exc, HTTPException):
                         raise exc from exc.__context__
 
                     raise HTTPException(HTTPStatus.InternalServerError, details=f"{type(exc).__name__}: {exc}") from None  # TODO switch displaying of error message
-                finally:
-                    incoming_packet.mark(PacketState.Executed)
 
                 incoming_packet.response_http = response_http
             except HTTPException as http_exc:
