@@ -13,7 +13,7 @@ from ._packet import Packet, PacketState
 from ._dispatcher import Dispatcher, DispatcherNotAllowed, DispatcherNotFound
 from ._packet import Packet, PacketState, Requester, IP
 from ._utils import autofilling_split
-from .http import HTTPRequest, HTTPResponse, HTTPStatus, HTTPException, Headers, Path, HTTPMethod
+from .http import HTTPRequest, HTTPResponse, HTTPStatus, HTTPException, Headers, Path, HTTPMethod, InvalidMethod, InvalidPath, EmptyPacket
 
 
 @dataclass
@@ -64,36 +64,35 @@ class _Processor:
 
     def _processing_worker(self) -> None:
         for incoming_packet in iter(self.incoming_queue.get, None):
-            http_req = incoming_packet.request_http
-
-            if http_req is False:
-                logging.warning(f"{incoming_packet} - invalid")
-                continue
-
             try:
-                try:
-                    callback = self._dispatcher.dispatch(http_req.path, http_req.method)
-                except DispatcherNotFound:
-                    raise HTTPException(HTTPStatus.NotFound) from None
-                except DispatcherNotAllowed:
-                    raise HTTPException(HTTPStatus.MethodNotAllowed) from None
-
                 request_http = incoming_packet.request_http
-
+            except (InvalidPath, InvalidMethod) as exc:
+                logging.warning(f"{incoming_packet} - {exc}")
+            except EmptyPacket:
+                pass  # silence
+            else:
                 try:
-                    response_http = callback(request_http, Calls(lambda: incoming_packet.mark(PacketState.Executing), lambda: incoming_packet.mark(PacketState.Executed)))
-                except Exception as exc:
-                    # ignore HTTPExceptions
-                    if isinstance(exc, HTTPException):
-                        raise exc from exc.__context__
+                    try:
+                        callback = self._dispatcher.dispatch(request_http.path, request_http.method)
+                    except DispatcherNotFound:
+                        raise HTTPException(HTTPStatus.NotFound) from None
+                    except DispatcherNotAllowed:
+                        raise HTTPException(HTTPStatus.MethodNotAllowed) from None
+                    else:
+                        try:
+                            response_http = callback(request_http, Calls(lambda: incoming_packet.mark(PacketState.Executing), lambda: incoming_packet.mark(PacketState.Executed)))
+                        except Exception as exc:
+                            # ignore HTTPExceptions
+                            if isinstance(exc, HTTPException):
+                                raise exc from exc.__context__
 
-                    raise HTTPException(HTTPStatus.InternalServerError, f"{type(exc).__name__}: {exc}" if self._run_config.exposing else "contact administration pls") from None
-
-                incoming_packet.response_http = response_http
-            except HTTPException as http_exc:
-                incoming_packet.response_http = HTTPResponse(http_exc.status_code, Headers(), http_exc.body)
-            finally:
-                self._processed_queue.put(incoming_packet)
+                            raise HTTPException(HTTPStatus.InternalServerError, f"{type(exc).__name__}: {exc}" if self._run_config.exposing else "contact administration pls") from None
+                        else:
+                            incoming_packet.response_http = response_http
+                except HTTPException as http_exc:
+                    incoming_packet.response_http = HTTPResponse(http_exc.status_code, Headers(), http_exc.body)
+                else:
+                    self._processed_queue.put(incoming_packet)
 
 
 class _Executor:

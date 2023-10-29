@@ -88,12 +88,9 @@ class Packet:
         return self._req_body
 
     @property
-    def request_http(self) -> HTTPRequest | False:
+    def request_http(self) -> HTTPRequest:
         if self._req_http is None:
-            try:
-                self._req_http = HTTPRequest.from_bytes(self.request_body)
-            except ValueError:
-                self._req_http = False  # TODO set it to a more meaningful thing maybe
+            self._req_http = HTTPRequest.from_bytes(self.request_body)
 
         return self._req_http
 

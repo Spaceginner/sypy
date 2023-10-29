@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import overload
+from dataclasses import dataclass
 
 from ._status import HTTPStatus
 
@@ -47,3 +47,25 @@ class HTTPException(RuntimeError):
 
 class InvalidHTTPPacket(RuntimeError):
     pass
+
+
+@dataclass
+class InvalidPath(InvalidHTTPPacket):
+    path: str
+
+    def __str__(self) -> str:
+        return f"invalid path - {self.path}"
+
+
+@dataclass
+class InvalidMethod(InvalidHTTPPacket):
+    method: str
+
+    def __str__(self) -> str:
+        return f"invalid method - {self.method}"
+
+
+@dataclass
+class EmptyPacket(InvalidHTTPPacket):
+    def __str__(self) -> str:
+        return "packet is empty"

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import string
 
 from ._method import HTTPMethod
-from ._errors import InvalidHTTPPacket, HTTPException
+from ._errors import HTTPException, InvalidPath, InvalidMethod, EmptyPacket
 from ._status import HTTPStatus
 from .path import Path
 from .path.encoder import encode
@@ -55,6 +55,9 @@ class HTTPRequest:
 
     @staticmethod
     def from_bytes(raw: bytes) -> HTTPRequest:
+        if not raw:
+            raise EmptyPacket()
+
         buff = ""
         endseq_combo = 0
         for b in raw:
@@ -84,12 +87,12 @@ class HTTPRequest:
         try:
             path = Path(path_raw)
         except ValueError:
-            raise InvalidHTTPPacket("path is invalid") from None
+            raise InvalidPath(path_raw) from None
 
         try:
             method = HTTPMethod(method_raw)
         except ValueError:
-            raise InvalidHTTPPacket("http method is invalid") from None
+            raise InvalidMethod(method_raw) from None
 
         return HTTPRequest(path, method, Headers.from_string(headers_raw), QueryParams.from_string(query_params_raw), raw[len(buff):])
 
