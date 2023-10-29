@@ -39,6 +39,7 @@ def decode(s: str) -> str:
         else:
             try:
                 buffer += _decode_char(s[0:3])
+                s = s[3:]
             except ValueError:
                 buffer += c
                 s = s[1:]
