@@ -23,22 +23,24 @@ def _decode_char(c: str) -> str:
     #     raise TypeError(f"expected an ASCII 3-char long 'str' starting with '%' (percent-encoded byte), got non-ASCII instead")
     # if (c_len := len(c)) != 3:
     #     raise TypeError(f"expected an ASCII 3-char long 'str' starting with '%' (percent-encoded byte), got {c_len}-char long instead")
-    if not c.startswith('%'):
-        raise ValueError(f"expected an ASCII 3-char long 'str' starting with '%' (percent-encoded byte), got starting with '{c[0]}' instead")
+    # if not c.startswith('%'):
+    #     raise ValueError(f"expected an ASCII 3-char long 'str' starting with '%' (percent-encoded byte), got starting with '{c[0]}' instead")
 
     return chr(int(c[1:], base=16))
 
 
-# TODO dont abuse exception mechanics, rn it is like ~~520%~~ 392% worse than urllib's
 def decode(s: str) -> str:
     buffer = ""
 
     while s:
-        try:
-            buffer += _decode_char(s[0:3])
-            s = s[3:]
-        except ValueError:
-            buffer += s[0]
+        if (c := s[0]) != '%':
+            buffer += c
             s = s[1:]
+        else:
+            try:
+                buffer += _decode_char(s[0:3])
+            except ValueError:
+                buffer += c
+                s = s[1:]
 
     return buffer
