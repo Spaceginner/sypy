@@ -91,7 +91,7 @@ class _Processor:
                             incoming_packet.response_http = response_http
                 except HTTPException as http_exc:
                     incoming_packet.response_http = HTTPResponse(http_exc.status_code, Headers(), http_exc.body)
-                else:
+                finally:
                     self._processed_queue.put(incoming_packet)
 
 
