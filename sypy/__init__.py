@@ -75,7 +75,7 @@ class _Processor:
                     if isinstance(exc, HTTPException):
                         raise exc from exc.__context__
 
-                    raise HTTPException(HTTPStatus.InternalServerError, details=f"{type(exc).__name__}: {exc}") from None  # TODO switch displaying of error message
+                    raise HTTPException(HTTPStatus.InternalServerError, f"{type(exc).__name__}: {exc}") from None  # TODO switch displaying of error message
 
                 incoming_packet.response_http = response_http
             except HTTPException as http_exc:
@@ -172,7 +172,7 @@ class Server:
     def start(self, port: int, /, debug: bool = False, listen: bool = False, workers: int = os.cpu_count() or 1) -> None:
         logging.basicConfig(
             format="%(asctime)s %(levelname)s - %(message)s",
-            level='DEBUG' if debug else 'INFO'
+            level=logging.DEBUG if debug else logging.INFO
         )
 
         self._executor = _Executor(self._shut_down, self.dispatcher, workers)

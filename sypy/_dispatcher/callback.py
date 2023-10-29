@@ -105,7 +105,7 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             unprocessed_parameters[self.body_param[0]] = request.body.decode('ascii'), get_args(self.body_param[1])[0]
 
         if _Nothing in unprocessed_parameters:
-            raise HTTPException(HTTPStatus.UnprocessableContent, details="you forgor something")
+            raise HTTPException(HTTPStatus.UnprocessableContent, "you forgor something")
 
         parameters: list[int | str | bool | bytes | None] = []
         for value, type_ in unprocessed_parameters:

@@ -77,7 +77,7 @@ class HTTPRequest:
         method_raw, path_unparsed, version = magic.split(' ', 2)
 
         if version != 'HTTP/1.1':
-            raise HTTPException(HTTPStatus.HTTPVersionNotSupported, details=f"nuh uh, not supported: {version}")
+            raise HTTPException(HTTPStatus.HTTPVersionNotSupported, f"nuh uh, not supported: {version}")
 
         path_raw, query_params_raw = autofilling_split(path_unparsed, '?', 1)
 
