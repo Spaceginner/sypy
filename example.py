@@ -1,7 +1,7 @@
 import math
 from typing import Annotated
 
-from sypy import Server
+from sypy import Server, RunConfig
 from sypy.parameters import Body, Depends, Header
 
 server = Server()
@@ -34,4 +34,4 @@ def jection(is_it: Annotated[bool, Depends(checker)], area: Annotated[float, Dep
 
 
 if __name__ == '__main__':
-    server.start(3000)
+    server.start(RunConfig(3000))

@@ -5,6 +5,7 @@ import queue
 import threading
 import socket
 import logging
+from dataclasses import dataclass
 from typing import Callable
 
 from ._dispatcher.callback import Calls
@@ -13,6 +14,15 @@ from ._dispatcher import Dispatcher, DispatcherNotAllowed, DispatcherNotFound
 from ._packet import Packet, PacketState, Requester, IP
 from ._utils import autofilling_split
 from .http import HTTPRequest, HTTPResponse, HTTPStatus, HTTPException, Headers, Path, HTTPMethod
+
+
+@dataclass
+class RunConfig:
+    port: int
+    workers: int = os.cpu_count() or 1
+    debug: bool = False
+    listen: bool = False
+    exposing: bool = True
 
 
 class _Processor:
@@ -26,7 +36,10 @@ class _Processor:
     _sending_thread: threading.Thread
     _processing_thread: threading.Thread
 
-    def __init__(self, shut_down: threading.Event, dispatcher: Dispatcher) -> None:
+    _run_config: RunConfig
+
+    def __init__(self, run_config: RunConfig, shut_down: threading.Event, dispatcher: Dispatcher) -> None:
+        self._run_config = run_config
         self._shut_down = shut_down
         self._dispatcher = dispatcher
 
@@ -68,14 +81,13 @@ class _Processor:
                 request_http = incoming_packet.request_http
 
                 try:
-
                     response_http = callback(request_http, Calls(lambda: incoming_packet.mark(PacketState.Executing), lambda: incoming_packet.mark(PacketState.Executed)))
                 except Exception as exc:
                     # ignore HTTPExceptions
                     if isinstance(exc, HTTPException):
                         raise exc from exc.__context__
 
-                    raise HTTPException(HTTPStatus.InternalServerError, f"{type(exc).__name__}: {exc}") from None  # TODO switch displaying of error message
+                    raise HTTPException(HTTPStatus.InternalServerError, f"{type(exc).__name__}: {exc}" if self._run_config.exposing else "contact administration pls") from None
 
                 incoming_packet.response_http = response_http
             except HTTPException as http_exc:
@@ -85,29 +97,30 @@ class _Processor:
 
 
 class _Executor:
+    _run_config: RunConfig
     _shut_down: threading.Event
 
     _dispatcher: Dispatcher
 
     _processors: list[_Processor]
     _last_worked_worker: int
-    _worker_count: int
 
-    def __init__(self, shut_down: threading.Event, dispatcher: Dispatcher, workers_count: int) -> None:
+    def __init__(self, run_config: RunConfig, shut_down: threading.Event, dispatcher: Dispatcher) -> None:
         self._shut_down = shut_down
-        self._worker_count = workers_count
         self._dispatcher = dispatcher
+        self._run_config = run_config
 
         self._last_worked_worker = 0
 
-        self._processors = [_Processor(self._shut_down, self._dispatcher) for _ in range(workers_count)]
+        self._processors = [_Processor(self._run_config, self._shut_down, self._dispatcher) for _ in range(self._run_config.workers)]
 
     def execute(self, packet: Packet):
         self._processors[self._last_worked_worker].incoming_queue.put(packet)
-        self._last_worked_worker = (self._last_worked_worker + 1) % self._worker_count
+        self._last_worked_worker = (self._last_worked_worker + 1) % self._run_config.workers
 
 
 class _Socket:
+    _run_config: RunConfig
     _shut_down: threading.Event
 
     _executor: _Executor
@@ -118,22 +131,23 @@ class _Socket:
     _packet_queue: queue.Queue[Packet]
     _queue_thread: threading.Thread
 
-    def __init__(self, shut_down: threading.Event, executor: _Executor, port: int, listen: bool) -> None:
+    def __init__(self, _run_config: RunConfig, shut_down: threading.Event, executor: _Executor) -> None:
+        self._run_config = _run_config
         self._shut_down = shut_down
         self._executor = executor
 
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._packet_queue = queue.Queue()
 
-        self._socket_thread = threading.Thread(target=self._socket_worker, args=(port, listen))
+        self._socket_thread = threading.Thread(target=self._socket_worker)
         self._queue_thread = threading.Thread(target=self._queue_worker)
 
     def start_the_machine(self):
         self._socket_thread.start()
         self._queue_thread.start()
 
-    def _socket_worker(self, port: int, listen: bool) -> None:
-        host = ('0.0.0.0' if listen else '127.0.0.1', port)
+    def _socket_worker(self) -> None:
+        host = ('0.0.0.0' if self._run_config.listen else '127.0.0.1', self._run_config.port)
 
         logging.info(f"launching socket worker on {':'.join(map(str, host))}")
         with self._socket as s:
@@ -153,6 +167,7 @@ class _Socket:
 class Server:
     dispatcher: Dispatcher
 
+    _run_config: RunConfig
     _shut_down: threading.Event
 
     _socket: _Socket | None = None
@@ -162,22 +177,21 @@ class Server:
         self._shut_down = threading.Event()
         self.dispatcher = Dispatcher()
 
-        self._socket = None
-        self._executor = None
-
     @property
     def is_working(self) -> bool:
         raise NotImplementedError("idfk")
 
-    def start(self, port: int, /, debug: bool = False, listen: bool = False, workers: int = os.cpu_count() or 1) -> None:
+    def start(self, run_config: RunConfig) -> None:
+        self._run_config = run_config
+
         logging.basicConfig(
             format="%(asctime)s %(levelname)s - %(message)s",
-            level=logging.DEBUG if debug else logging.INFO
+            level=logging.DEBUG if self._run_config.debug else logging.INFO
         )
 
-        self._executor = _Executor(self._shut_down, self.dispatcher, workers)
+        self._executor = _Executor(self._run_config, self._shut_down, self.dispatcher)
 
-        self._socket = _Socket(self._shut_down, self._executor, port, listen)
+        self._socket = _Socket(self._run_config, self._shut_down, self._executor)
         self._socket.start_the_machine()
 
     def stop(self) -> None:
