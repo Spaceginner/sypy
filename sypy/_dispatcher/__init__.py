@@ -30,9 +30,15 @@ class Dispatcher:
         search = _search or self._endpoints
 
         if len(path_parts) == 1:
-            return search[path_parts[0]]
+            if not (method_table := search[path_parts[0]]).keys():
+                raise KeyError("no method table was found for such path")
+
+            return method_table
         else:
-            return self._lookup_method_table(path_parts, _search=search[path_parts.pop(0)])
+            if not (subtable := search[path_parts.pop(0)]).keys():
+                raise KeyError("no method table was found for such path")
+
+            return self._lookup_method_table(path_parts, _search=subtable)
 
     def dispatch(self, path: Path, method: HTTPMethod) -> Callback:
         try:
