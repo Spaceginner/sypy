@@ -42,7 +42,7 @@ class Dispatcher:
 
     def dispatch(self, path: Path, method: HTTPMethod) -> Callback:
         try:
-            method_table = self._lookup_method_table(path.parts)
+            method_table = self._lookup_method_table(path.parts[:])
         except KeyError:
             raise DispatcherNotFound(f"method/callback table was not found for {path}") from None
         

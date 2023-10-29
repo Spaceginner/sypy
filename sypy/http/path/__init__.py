@@ -17,15 +17,10 @@ class Path:
             if c not in RESERVED + UNRESERVED + '%':
                 raise ValueError(f"invalid path, unexpected char: {c}")
 
-    @overload
-    def __init__(self, path: str) -> None: ...
-    @overload
-    def __init__(self, parts: list[str]) -> None: ...
-
-    def __init__(self, *args) -> None:
-        self._validate_path(args[0])
+    def __init__(self, path: str) -> None:
+        self._validate_path(path)
         # TODO remove the inner if-statement at all (ie move the check out)
-        self.parts = [part if '%' not in part else decode(part) for part in args.removesuffix('/').removeprefix('/').split('/')] if isinstance(args, str) else [part if '%' not in part else decode(part) for part in args]
+        self.parts = [part if '%' not in part else decode(part) for part in path.removesuffix('/').removeprefix('/').split('/')]
 
     def __str__(self) -> str:
         return f"/{'/'.join(self.parts)}"
