@@ -25,13 +25,16 @@ class HTTPException(RuntimeError):
     @property
     def body(self):
         if self._body is None:
-            if isinstance(self._message, bytes):
-                self._body = self._message
+            if self._message is None:
+                self._body = bytes()
             else:
-                if self._json_key is not None:
-                    self._body = json.dumps({self._json_key: self._message}).encode('utf-8')
+                if isinstance(self._message, bytes):
+                    self._body = self._message
                 else:
-                    self._body = self._message.encode('utf-8')
+                    if self._json_key is not None:
+                        self._body = json.dumps({self._json_key: self._message}).encode('utf-8')
+                    else:
+                        self._body = self._message.encode('utf-8')
 
         return self._body
 
