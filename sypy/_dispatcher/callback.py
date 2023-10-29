@@ -118,7 +118,16 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             elif type_ is str:
                 parameters.append(value)
             elif type_ is bool:
-                parameters.append(True if v == 'true' else False if v == 'false' else None)  # TODO raise some kind of exception idk
+                # XXX is there a better way?
+                parsed: bool
+                if v == 'true':
+                    parsed = True
+                elif v == 'false':
+                    parsed = False
+                else:
+                    raise HTTPException(HTTPStatus.UnprocessableContent, "invalid value for bool param")
+
+                parameters.append(parsed)
             elif type_ is bytes:
                 parameters.append(value.encode('ascii'))
             else:
