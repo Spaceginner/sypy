@@ -24,7 +24,8 @@ class Path:
 
     def __init__(self, *args) -> None:
         self._validate_path(args[0])
-        self.parts = [decode(part) for part in args[0].removesuffix('/').removeprefix('/').split('/')] if isinstance(args[0], str) else args[0]
+        # TODO remove the inner if-statement at all (ie move the check out)
+        self.parts = [part if '%' not in part else decode(part) for part in args[0].removesuffix('/').removeprefix('/').split('/')] if isinstance(args[0], str) else args[0] if '%' not in args[0] else decode(args[0])
 
     def __str__(self) -> str:
         return f"/{'/'.join(self.parts)}"
