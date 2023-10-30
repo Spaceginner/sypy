@@ -14,6 +14,7 @@ from ._dispatcher import Dispatcher, DispatcherNotAllowed, DispatcherNotFound
 from ._packet import Packet, PacketState, Requester, IP
 from ._utils import autofilling_split
 from .http import HTTPRequest, HTTPResponse, HTTPStatus, HTTPException, Headers, Path, HTTPMethod, InvalidMethod, InvalidPath, EmptyPacket
+from ._logging import logger
 
 
 @dataclass
@@ -63,11 +64,13 @@ class _Processor:
             processed_packet.mark(PacketState.Sent)
 
     def _processing_worker(self) -> None:
+        global logger
+
         for incoming_packet in iter(self.incoming_queue.get, None):
             try:
                 request_http = incoming_packet.request_http
             except (InvalidPath, InvalidMethod) as exc:
-                logging.warning(f"{incoming_packet} - {exc}")
+                logger.warning(f"{incoming_packet} - {exc}")
             except EmptyPacket:
                 pass  # silence
             else:
@@ -146,9 +149,11 @@ class _Socket:
         self._queue_thread.start()
 
     def _socket_worker(self) -> None:
+        global logger
+
         host = ('0.0.0.0' if self._run_config.listen else '127.0.0.1', self._run_config.port)
 
-        logging.info(f"launching socket worker on {':'.join(map(str, host))}")
+        logger.info(f"launching socket worker on {':'.join(map(str, host))}")
         with self._socket as s:
             s.bind(host)
             s.listen(True)
@@ -181,12 +186,11 @@ class Server:
         raise NotImplementedError("idfk")
 
     def start(self, run_config: RunConfig) -> None:
+        global logger
+
         self._run_config = run_config
 
-        logging.basicConfig(
-            format="%(asctime)s %(levelname)s - %(message)s",
-            level=logging.DEBUG if self._run_config.debug else logging.INFO
-        )
+        logger.setLevel(logging.DEBUG if self._run_config.debug else logging.INFO)
 
         self._executor = _Executor(self._run_config, self._shut_down, self.dispatcher)
 

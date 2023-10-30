@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import logging
 import socket
 import time
 from dataclasses import dataclass, field
@@ -8,6 +6,7 @@ from enum import StrEnum
 from typing import overload
 
 from .http import HTTPResponse, HTTPRequest
+from ._logging import logger
 
 
 class PacketState(StrEnum):
@@ -105,13 +104,15 @@ class Packet:
         return self._res_body
 
     def mark(self, state: PacketState) -> None:
+        global logger        
+
         if getattr(self.stats, state) is not None:
             raise RuntimeError("packet was already marked as receiving")
 
         setattr(self.stats, state, time.perf_counter())
 
         if state == PacketState.Sent:
-            logging.info(f"{self} - {self.stats}")
+            logger.info(f"{self} - {self.stats}")
 
     def __str__(self) -> str:
         return (f"{self.requester} - "
