@@ -3,3 +3,4 @@
 /venv
 /dist
 /sypy.egg-info
+__pycache__/
