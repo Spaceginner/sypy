@@ -80,7 +80,7 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
         elif signature.return_annotation is None:
             self.converter = lambda _: bytes()
         else:
-            raise TypeError("not supported return buddy, not supported")
+            raise TypeError("not supported return type, buddy, not supported")
 
     def __call__(self, request: HTTPRequest, callback_callbacks: Calls | None = None) -> HTTPResponse | R:
         total_parameters = len(self.query_params) + len(self.header_params) + len(self.dependent_params) + (self.body_param is not None)
