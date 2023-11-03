@@ -1,5 +1,5 @@
 import math
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 from sypy import Server, RunConfig
 from sypy.http import HTTPException, HTTPStatus, Headers
@@ -42,7 +42,7 @@ LOCATIONS = {
 
 
 @server.get('/redirect')
-def headers(where: str) -> None:
+def headers(where: str) -> NoReturn:
     try:
         raise HTTPException(
             HTTPStatus.PermanentRedirect,
@@ -57,7 +57,7 @@ def headers(where: str) -> None:
 
 
 @server.get('/redirect/loop')
-def looping() -> None:
+def looping() -> NoReturn:
     raise HTTPException(
         HTTPStatus.MovedPermanently,
         "this is definetely not a trap",
