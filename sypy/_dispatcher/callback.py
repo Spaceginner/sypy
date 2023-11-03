@@ -1,7 +1,7 @@
 from __future__ import annotations
 import inspect
 import json
-from typing import Callable, Any, _AnnotatedAlias, get_args
+from typing import Callable, Any, _AnnotatedAlias, get_args, NoReturn, Never
 from dataclasses import dataclass
 
 from ..http import HTTPStatus, Headers, HTTPException, HTTPRequest, HTTPResponse
@@ -79,6 +79,8 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             self.converter = lambda d: json.dumps(d).encode('utf-8')
         elif signature.return_annotation is None:
             self.converter = lambda _: bytes()
+        elif is_in(signature.return_annotation, (NoReturn, Never)):
+            self.converter = None
         else:
             raise TypeError("not supported return type, buddy, not supported")
 
