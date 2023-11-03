@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Iterable, Sequence
 
 
@@ -15,3 +16,7 @@ def isinstanceorclass(obj: object, class_: type) -> bool:
 
 def is_in(obj, iterable: Iterable) -> bool:
     return any(obj is item for item in iterable)
+
+
+def defaultdict_of_defaultdicts_factory[K, V]() -> defaultdict[K, V]:
+    return defaultdict(defaultdict_of_defaultdicts_factory)

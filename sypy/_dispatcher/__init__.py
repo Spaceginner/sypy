@@ -6,6 +6,7 @@ from typing import Callable
 from .callback import Callback
 from ..http._method import HTTPMethod
 from ..http.path import Path
+from .._utils import defaultdict_of_defaultdicts_factory
 
 
 type MethodTable = dict[HTTPMethod, Callback]
@@ -24,7 +25,7 @@ class Dispatcher:
     _endpoints: Endpoints
 
     def __init__(self):
-        self._endpoints = defaultdict(defaultdict)
+        self._endpoints = defaultdict_of_defaultdicts_factory()
 
     def _lookup_method_table(self, path_parts: list[str], /, _search: Endpoints | None = None) -> MethodTable:
         search = _search or self._endpoints
@@ -51,10 +52,10 @@ class Dispatcher:
         except KeyError:
             raise DispatcherNotAllowed(f"method '{method}' is not allowed for {path}") from None
 
-    def register_callback(self, path: Path, method: HTTPMethod, callback: Callable, /, __endpoints: Endpoints | None = None) -> None:
-        endpoints = __endpoints or self._endpoints
+    def register_callback(self, path: Path, method: HTTPMethod, callback: Callable, /, _endpoints: Endpoints | None = None) -> None:
+        endpoints = _endpoints or self._endpoints
 
         if len(path.parts) > 1:
-            self.register_callback(Path(path.parts[1:]), method, callback, __endpoints=endpoints[path.parts[0]])
+            self.register_callback(Path(path.parts[1:]), method, callback, _endpoints=endpoints[path.parts[0]])
         else:
             endpoints[path.parts[0]][method] = Callback(callback)
