@@ -77,7 +77,7 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             self.converter = lambda b: b
         elif is_in(signature.return_annotation, (dict, list, tuple)):
             self.converter = lambda d: json.dumps(d).encode('utf-8')
-        elif is_in(signature.return_annotation, (None, NoReturn, Never)):
+        elif signature.return_annotation is None:
             self.converter = lambda _: bytes()
         elif is_in(signature.return_annotation, (NoReturn, Never)):
             self.converter = None
