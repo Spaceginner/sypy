@@ -4,21 +4,24 @@ import json
 from dataclasses import dataclass
 
 from ._status import HTTPStatus
+from ._frames.parts import Headers
 
 
 class HTTPException(RuntimeError):
     status_code: HTTPStatus
+    headers: Headers | None
 
     _message: str | bytes | None
     _json_key: str | None
 
     _body: bytes | None = None
 
-    def __init__(self, status_code: HTTPStatus, message: str | bytes | None = None, /, json_key: str | None = None) -> None:
+    def __init__(self, status_code: HTTPStatus, message: str | bytes | None = None, headers: Headers | None = None, /, json_key: str | None = None) -> None:
         if isinstance(message, bytes) and json_key is not None:
             raise TypeError("you can't pack binary into json")
 
         self.status_code = status_code
+        self.headers = headers
         self._message = message
         self._json_key = json_key
 
