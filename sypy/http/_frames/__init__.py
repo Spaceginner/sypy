@@ -69,4 +69,4 @@ class HTTPResponse:
     body: bytes
 
     def to_bytes(self) -> bytes:
-        return f"HTTP/1.1 {self.status}\r\n{self.headers.to_string()}\r\n".encode('ascii') + self.body
+        return f"HTTP/1.1 {self.status}\r\n{self.headers.to_string()}\r\n\r\n".encode('ascii') + self.body
