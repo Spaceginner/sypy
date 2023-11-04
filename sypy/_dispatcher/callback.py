@@ -144,5 +144,5 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             else:
                 return HTTPResponse(HTTPStatus.OK, Headers(), self.converter(self.callback(*parameters)))
         finally:
-            if callback_callbacks is not None and callback_callbacks.pre_call is not None:
+            if callback_callbacks is not None and callback_callbacks.post_call is not None:
                 callback_callbacks.post_call()
