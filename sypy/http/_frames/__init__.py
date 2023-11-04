@@ -68,5 +68,11 @@ class HTTPResponse:
     headers: Headers
     body: bytes
 
+    def _prepare(self) -> None:
+        self.headers['content-length'] = len(self.body)
+        self.headers['server'] = 'sypy'
+
     def to_bytes(self) -> bytes:
+        self._prepare()  # XXX should it be caller's responsibility?
+
         return f"HTTP/1.1 {self.status}\r\n{self.headers.to_string()}\r\n\r\n".encode('ascii') + self.body
