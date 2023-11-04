@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sypy"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
     { name="Ivan \"Spaceginner\"", email="ivan.demian2009@gmail.com" }
 ]
@@ -12,7 +12,7 @@ description = "fastapi rip-off"
 readme = "readme.md"
 requires-python = ">=3.12"
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
