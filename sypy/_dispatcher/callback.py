@@ -109,7 +109,7 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
         if _Nothing in unprocessed_parameters:
             raise HTTPException(HTTPStatus.UnprocessableContent, "you forgor something")
 
-        parameters: list[int | str | bool | bytes | None] = []
+        parameters: list[int | str | bool | bytes | dict | None] = []
         for value, type_ in unprocessed_parameters:
             if type_ is None:
                 parameters.append(value)
@@ -132,6 +132,8 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
                 parameters.append(parsed)
             elif type_ is bytes:
                 parameters.append(value.encode('ascii'))
+            elif type_ is dict:
+                parameters.append(json.loads(value))
             else:
                 raise TypeError("implement yourself, not supported callback signature paramater's type")
 

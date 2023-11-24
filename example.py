@@ -65,5 +65,10 @@ def looping() -> NoReturn:
     )
 
 
+@server.post('/smth')
+def anything(stuff: Annotated[dict, Body]) -> str:
+    return '\n'.join(f"{key}={value}" for key, value in stuff.items())
+
+
 if __name__ == '__main__':
     server.start(RunConfig(3000))
