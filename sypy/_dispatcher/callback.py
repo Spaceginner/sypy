@@ -27,7 +27,7 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
     dependent_params: list[tuple[int, Callback]]
 
     callback: Callable[[P], R]
-    converter: Callable[[R], bytes]
+    converter: Callable[[R], bytes] | None
 
     raw: bool = False
 
