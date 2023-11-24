@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass
 from typing import Annotated, NoReturn
 
 from sypy import Server, RunConfig
@@ -68,6 +69,27 @@ def looping() -> NoReturn:
 @server.post('/smth')
 def anything(stuff: Annotated[dict, Body]) -> str:
     return '\n'.join(f"{key}={value}" for key, value in stuff.items())
+
+
+@dataclass
+class SomeMessage:
+    sender: int
+    receiver: int
+    contents: str
+
+
+@dataclass
+class UhhYeah:
+    dumb_status: int
+    details: str
+
+
+@server.post('/message')
+def message_send_kinda(message: Annotated[SomeMessage, Body]) -> UhhYeah:
+    return UhhYeah(
+        dumb_status=200,
+        details=f"message '{message.contents[:10]}{'...' if len(message.contents) > 10 else ''}' by {message.sender} was sent to {message.receiver}"
+    )
 
 
 if __name__ == '__main__':

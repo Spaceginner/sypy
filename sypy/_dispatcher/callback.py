@@ -1,11 +1,13 @@
 from __future__ import annotations
+
+import dataclasses
 import inspect
 import json
 from typing import Callable, Any, _AnnotatedAlias, get_args, NoReturn, Never
 from dataclasses import dataclass
 
 from ..http import HTTPStatus, Headers, HTTPException, HTTPRequest, HTTPResponse
-from .._utils import isinstanceorclass, is_in
+from .._utils import isinstanceorclass, is_in, dataclass_from_dict
 from ..parameters import Body, Query, Header, Depends
 
 
@@ -77,6 +79,8 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
             self.converter = lambda b: b
         elif is_in(signature.return_annotation, (dict, list, tuple)):
             self.converter = lambda d: json.dumps(d).encode('utf-8')
+        elif dataclasses.is_dataclass(signature.return_annotation):
+            self.converter = lambda d: json.dumps(dataclasses.asdict(d)).encode('utf-8')
         elif signature.return_annotation is None:
             self.converter = lambda _: bytes()
         elif is_in(signature.return_annotation, (NoReturn, Never)):
@@ -134,6 +138,17 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
                 parameters.append(value.encode('ascii'))
             elif type_ is dict:
                 parameters.append(json.loads(value))
+            elif dataclasses.is_dataclass(type_):
+                # TODO typechecking of values
+                try:
+                    raw_json = json.loads(value)
+                except TypeError:
+                    raise HTTPException(HTTPStatus.UnprocessableContent, "json is invalid") from None
+                else:
+                    try:
+                        parameters.append(dataclass_from_dict(type_, raw_json))
+                    except TypeError:
+                        raise HTTPException(HTTPStatus.UnprocessableContent, "you forgor something in some json")
             else:
                 raise TypeError("implement yourself, not supported callback signature paramater's type")
 

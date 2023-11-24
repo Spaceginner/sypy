@@ -20,3 +20,13 @@ def is_in(obj, iterable: Iterable) -> bool:
 
 def defaultdict_of_defaultdicts_factory[K, V]() -> defaultdict[K, V]:
     return defaultdict(defaultdict_of_defaultdicts_factory)
+
+
+def dataclass_from_dict[T](dataclass: type[T], dict_: dict) -> T:
+    try:
+        fieldtypes = dataclass.__annotations__  # TODO make use of something else then annotations for fields
+        return dataclass(**{f: dataclass_from_dict(fieldtypes[f], dict_[f]) for f in dict_})
+    except AttributeError:
+        if isinstance(dict_, (tuple, list)):
+            return [dataclass_from_dict(dataclass.__args__[0], f) for f in dict_]
+        return dict_
