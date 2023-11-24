@@ -63,7 +63,7 @@ class Callback[**T, **P, R: int | str | bytes | dict | list | tuple]:
                 elif annotated_type is Depends:
                     raise TypeError("on what the hell does it depend on?")
                 else:
-                    raise TypeError("pls annotated your shit correctly, thanks")
+                    raise TypeError("pls annotate your shit correctly, thanks")
             else:
                 self.query_params.append((i, param.name, type_, param.default != param.empty, param.default))
 
