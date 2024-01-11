@@ -47,10 +47,10 @@ class Dispatcher:
         except KeyError:
             raise DispatcherNotFound(f"method/callback table was not found for {path}") from None
         
-        try:
-            return method_table[method]
-        except KeyError:
+        if method not in method_table:
             raise DispatcherNotAllowed(f"method '{method}' is not allowed for {path}") from None
+
+        return method_table[method]
 
     def register_callback(self, path: Path, method: HTTPMethod, callback: Callable, /, _endpoints: Endpoints | None = None) -> None:
         endpoints = _endpoints or self._endpoints
